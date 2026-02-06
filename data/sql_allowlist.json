@@ -1,0 +1,40 @@
+{
+  "incidents": [
+    "incident_id",
+    "service",
+    "priority",
+    "status",
+    "created_at",
+    "resolved_at",
+    "summary",
+    "assignee"
+  ],
+  "problems": [
+    "problem_id",
+    "service",
+    "priority",
+    "status",
+    "created_at",
+    "resolved_at",
+    "summary",
+    "coordinator"
+  ],
+  "changes": [
+    "change_id",
+    "service",
+    "status",
+    "created_at",
+    "completed_at",
+    "summary",
+    "risk_level"
+  ],
+  "tasks": [
+    "task_id",
+    "service",
+    "status",
+    "created_at",
+    "completed_at",
+    "summary",
+    "assignee"
+  ]
+}
