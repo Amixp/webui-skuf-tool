@@ -6,8 +6,8 @@
 
 ## Рекомендуемый формат базы знаний
 
-Документы лучше хранить в markdown с заголовочной метадатой и разделителем `---`.
-Подробная спецификация и пример: [docs/knowledge_base_format.md](docs/knowledge_base_format.md).
+Рекомендуемый формат метаданных для записей Knowledge описан в
+[docs/knowledge_base_format.md](docs/knowledge_base_format.md).
 
 ## Инструмент: контекстный агент (поиск + SQL)
 
@@ -15,8 +15,8 @@
 
 Основные методы:
 
-- `search_kb(query, path="data/knowledge_base.md", top_k=5, filters=None)`
-  - Поиск по документам.
+- `search_kb(query, top_k=5, filters=None, base_url="http://localhost:3000", api_key=None)`
+  - Поиск по записям Knowledge через внутренний API Open WebUI.
   - `filters` — словарь фильтров по метаданным.
 - `build_sql(table, columns, filters=None, limit=100, allowlist_json="data/sql_allowlist.json")`
   - Генерация параметризованного SQL только по allowlist.
@@ -30,21 +30,14 @@
 - `rerank(query, candidates, top_k=5)`
   - Переупорядочивает кандидатов по релевантности.
 
-## Пример: формат документа
+## Пример: формат записи Knowledge
 
 ```text
-Problem ID: PBI000000183188
-Сервис: Видеокомфорт
-Приоритет: Medium
-Статус: Closed
-Дата создания: 2023-09-01 02:21:52
-
-Описание: Потеря видеоархива у всех пользователей (INC000018102347).
-Решение: Разнесение VIP IP, настройка failover.
----
-Номер инцидента: INC000021013376
-Имя услуги: Видеокомфорт
-Статус инцидента: Закрыт
-
-Описание: ТТ7 803129, нет трансляции по камере
+id: PBI000000183188
+service: Видеокомфорт
+priority: Medium
+status: Closed
+created_at: 2023-09-01 02:21:52
+summary: Потеря видеоархива у всех пользователей (INC000018102347).
+resolution: Разнесение VIP IP, настройка failover.
 ```

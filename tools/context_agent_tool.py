@@ -1,116 +1,14 @@
 from __future__ import annotations
 
 import json
-import re
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-
-HEADER_LINE_RE = re.compile(r"^(?P<key>[^:]+):\s*(?P<value>.*)$")
-TOKEN_RE = re.compile(r"[\w\-]+", re.UNICODE)
-
-
-@dataclass(frozen=True)
-class KnowledgeRecord:
-    record_id: str
-    record_type: str
-    fields: Dict[str, str]
-    body: str
-
-    def to_index_text(self) -> str:
-        field_text = " ".join(f"{key} {value}" for key, value in self.fields.items())
-        return f"{self.record_id} {self.record_type} {field_text} {self.body}".strip()
+import requests
 
 
 def _normalize_key(raw_key: str) -> str:
     return raw_key.strip().replace(" ", "_").replace("/", "_").lower()
-
-
-def _infer_record_type(fields: Dict[str, str]) -> Tuple[str, str]:
-    if "problem_id" in fields:
-        return fields["problem_id"], "problem"
-    if "номер_инцидента" in fields:
-        return fields["номер_инцидента"], "incident"
-    if "номер_задачи" in fields:
-        return fields["номер_задачи"], "task"
-    if "номер_изменения" in fields:
-        return fields["номер_изменения"], "change"
-    return fields.get("id", "unknown"), "unknown"
-
-
-def parse_markdown_records(text: str) -> List[KnowledgeRecord]:
-    blocks = [block.strip() for block in text.split("---") if block.strip()]
-    records: List[KnowledgeRecord] = []
-    for block in blocks:
-        lines = block.splitlines()
-        fields: Dict[str, str] = {}
-        body_lines: List[str] = []
-        in_body = False
-        for line in lines:
-            if not in_body:
-                if not line.strip():
-                    in_body = True
-                    continue
-                match = HEADER_LINE_RE.match(line)
-                if match:
-                    key = _normalize_key(match.group("key"))
-                    fields[key] = match.group("value").strip()
-                    continue
-                in_body = True
-            body_lines.append(line)
-        body = "\n".join(body_lines).strip()
-        record_id, record_type = _infer_record_type(fields)
-        records.append(
-            KnowledgeRecord(
-                record_id=record_id,
-                record_type=record_type,
-                fields=fields,
-                body=body,
-            )
-        )
-    return records
-
-
-def _tokenize(text: str) -> List[str]:
-    return [token.lower() for token in TOKEN_RE.findall(text)]
-
-
-def _score_query(query_tokens: List[str], doc_tokens: List[str]) -> float:
-    if not query_tokens or not doc_tokens:
-        return 0.0
-    doc_counts: Dict[str, int] = {}
-    for token in doc_tokens:
-        doc_counts[token] = doc_counts.get(token, 0) + 1
-    score = 0.0
-    for token in query_tokens:
-        score += doc_counts.get(token, 0)
-    return score
-
-
-def _filter_record(record: KnowledgeRecord, filters: Optional[Dict[str, str]]) -> bool:
-    if not filters:
-        return True
-    for key, expected in filters.items():
-        normalized_key = _normalize_key(key)
-        value = record.fields.get(normalized_key, "")
-        if expected.lower() not in value.lower():
-            return False
-    return True
-
-
-def _load_records(path: Path) -> List[KnowledgeRecord]:
-    text = path.read_text(encoding="utf-8")
-    return parse_markdown_records(text)
-
-
-def _record_summary(record: KnowledgeRecord) -> Dict[str, Any]:
-    return {
-        "id": record.record_id,
-        "type": record.record_type,
-        "fields": record.fields,
-        "summary": record.body[:400],
-    }
 
 
 def _apply_allowlist(
@@ -140,22 +38,22 @@ class Tools:
     def search_kb(
         self,
         query: str,
-        path: str = "data/knowledge_base.md",
         top_k: int = 5,
         filters: Optional[Dict[str, str]] = None,
+        base_url: str = "http://localhost:3000",
+        api_key: Optional[str] = None,
+        endpoint: str = "/api/knowledge/search",
     ) -> Dict[str, Any]:
-        """Search knowledge base records in a markdown file."""
-        records = _load_records(Path(path))
-        query_tokens = _tokenize(query)
-        scored: List[Tuple[KnowledgeRecord, float]] = []
-        for record in records:
-            if not _filter_record(record, filters):
-                continue
-            score = _score_query(query_tokens, _tokenize(record.to_index_text()))
-            if score > 0:
-                scored.append((record, score))
-        scored.sort(key=lambda item: item[1], reverse=True)
-        results = [_record_summary(record) for record, _ in scored[:top_k]]
+        """Search Open WebUI knowledge entries via the internal API."""
+        normalized_filters = {_normalize_key(key): value for key, value in (filters or {}).items()}
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        payload = {"query": query, "top_k": top_k, "filters": normalized_filters}
+        response = requests.post(f"{base_url}{endpoint}", headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        results = data.get("results", data)
         return {"query": query, "results": results, "total": len(results)}
 
     def build_sql(
@@ -178,10 +76,20 @@ class Tools:
         return {"sql": sql, "params": params}
 
     def describe_format(self) -> Dict[str, Any]:
-        """Return recommended knowledge base record format."""
+        """Return recommended metadata schema for knowledge entries."""
         return {
-            "format": "markdown-with-front-matter",
-            "separator": "---",
-            "required_fields": ["Problem ID/Номер инцидента/Номер задачи/Номер изменения", "Сервис"],
-            "notes": "Metadata at top as key: value lines, blank line, then body." ,
+            "format": "knowledge-entry",
+            "required_fields": ["id", "service"],
+            "recommended_fields": [
+                "priority",
+                "status",
+                "category",
+                "class",
+                "created_at",
+                "resolved_at",
+                "closed_at",
+                "coordinator",
+                "assignee",
+            ],
+            "notes": "Store metadata as key/value pairs in the WebUI knowledge entry.",
         }
