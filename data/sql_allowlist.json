@@ -1,40 +1,48 @@
 {
-  "incidents": [
-    "incident_id",
-    "service",
-    "priority",
-    "status",
-    "created_at",
-    "resolved_at",
-    "summary",
-    "assignee"
-  ],
-  "problems": [
-    "problem_id",
-    "service",
-    "priority",
-    "status",
-    "created_at",
-    "resolved_at",
-    "summary",
-    "coordinator"
-  ],
-  "changes": [
-    "change_id",
-    "service",
-    "status",
-    "created_at",
-    "completed_at",
-    "summary",
-    "risk_level"
-  ],
-  "tasks": [
-    "task_id",
-    "service",
-    "status",
-    "created_at",
-    "completed_at",
-    "summary",
-    "assignee"
-  ]
+    "incidents": [
+        "incident_id",
+        "service",
+        "priority",
+        "status",
+        "category",
+        "created_at",
+        "resolved_at",
+        "closed_at",
+        "sla_violated",
+        "sla_deadline",
+        "summary",
+        "assignee"
+    ],
+    "problems": [
+        "problem_id",
+        "service",
+        "priority",
+        "status",
+        "category",
+        "created_at",
+        "resolved_at",
+        "closed_at",
+        "summary",
+        "coordinator"
+    ],
+    "changes": [
+        "change_id",
+        "service",
+        "status",
+        "category",
+        "created_at",
+        "completed_at",
+        "summary",
+        "risk_level"
+    ],
+    "tasks": [
+        "task_id",
+        "service",
+        "status",
+        "category",
+        "created_at",
+        "completed_at",
+        "summary",
+        "assignee"
+    ]
 }
